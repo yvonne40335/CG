@@ -1,4 +1,4 @@
-﻿#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #define CVUI_IMPLEMENTATION
 #include "cvui.h"
@@ -7,8 +7,8 @@ using namespace cv;
 using namespace std;
 
 vector<int> record;
-vector<Point> pointList0, pointList1, newpointList0, newpointList1;
-Point previousPoint0, previousPoint1;
+vector<Point> pointList0, pointList1, pointList2, newpointList0, newpointList1, newpointList2;
+Point previousPoint0, previousPoint1, previousPoint2;
 
 void CallBackFunc0(int event, int x, int y, int flags, void* userdata)
 {
@@ -46,7 +46,25 @@ void CallBackFunc1(int event, int x, int y, int flags, void* userdata)
 	}
 }
 
-void newLines(void* userdata, int flag, float t)
+void CallBackFunc2(int event, int x, int y, int flags, void* userdata)
+{
+	if (event == CV_EVENT_LBUTTONDOWN)
+	{
+		previousPoint2 = Point(x, y);
+	}
+	else if (event == CV_EVENT_LBUTTONUP)
+	{
+		Point pt(x, y);
+		line((*(Mat*)userdata), previousPoint2, pt, Scalar(0, 0, 255), 2);
+		pointList2.push_back(previousPoint2);
+		pointList2.push_back(pt);
+		previousPoint2 = pt;
+		imshow("Image2", (*(Mat*)userdata));
+		record.push_back(2);
+	}
+}
+
+void newLines(float t)
 {
 	Point newPointP, newPointQ;
 	//float t = 0.5;
@@ -57,20 +75,11 @@ void newLines(void* userdata, int flag, float t)
 		newPointP.y = (1 - t)*pointList0[i].y + t * pointList1[i].y;
 		newPointQ.x = (1 - t)*pointList0[i + 1].x + t * pointList1[i + 1].x;
 		newPointQ.y = (1 - t)*pointList0[i + 1].y + t * pointList1[i + 1].y;
-		if (flag == 0)
-		{
-			//line((*(Mat*)userdata), newPointP, newPointQ, Scalar(0, 0, 255), 2);
-			newpointList0.push_back(newPointP); //store Point of line
-			newpointList0.push_back(newPointQ);
-			//imshow("Warp0", (*(Mat*)userdata));
-		}
-		else
-		{
-			//line((*(Mat*)userdata), newPointP, newPointQ, Scalar(0, 0, 255), 2);
-			newpointList1.push_back(newPointP); //store Point of line
-			newpointList1.push_back(newPointQ);
-			//imshow("Warp1", (*(Mat*)userdata));
-		}
+
+		newpointList0.push_back(newPointP); //store Point of line
+		newpointList0.push_back(newPointQ);
+		newpointList1.push_back(newPointP); //store Point of line
+		newpointList1.push_back(newPointQ);
 	}
 }
 
@@ -102,13 +111,11 @@ cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
 
 double test(Point X, Point P, Point Q, double u, double v)
 {
-	if (u < 0) {
+	if (u < 0)
 		return sqrt(pow((X.x - P.x), 2) + pow((X.y - P.y), 2));
-	}
 
-	if (u > 1) {
+	if (u > 1)
 		return sqrt(pow((X.x - Q.x), 2) + pow((X.y - Q.y), 2));
-	}
 
 	return std::abs(v);
 }
@@ -183,10 +190,10 @@ void WarpImage(void* image, void* resultimage, int flag)
 			if (ps.y >= (*(Mat*)resultimage).rows)
 				ps.y = (*(Mat*)resultimage).rows - 1;
 			
-				cv::Vec3b pixel = getColorSubpix((*(Mat*)image), ps);
-				(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[0] = pixel[0];
-				(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[1] = pixel[1];
-				(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[2] = pixel[2];
+			cv::Vec3b pixel = getColorSubpix((*(Mat*)image), ps);
+			(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[0] = pixel[0];
+			(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[1] = pixel[1];
+			(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[2] = pixel[2];
 		}
 	}
 	
@@ -206,6 +213,12 @@ int main()
 	setMouseCallback("Image1", CallBackFunc1, &temp1);
 	imshow("Image1", temp1);
 	Mat img1 = temp1.clone();
+
+	Mat temp2 = imread("lisa.jpg");
+	namedWindow("Image2", WINDOW_AUTOSIZE);
+	setMouseCallback("Image2", CallBackFunc2, &temp2);
+	imshow("Image2", temp2);
+	Mat img2 = temp2.clone();
 	
 	printf("畫線時兩邊順序要相同\n");
 	printf("按a可復原線段\n");
@@ -231,7 +244,7 @@ int main()
 				imshow("Image0", temp);
 				temp0 = temp;
 			}
-			else //1
+			else if (record[record.size() - 1] == 1)
 			{
 				record.pop_back();
 				Mat temp = imread("cheetah.jpg");
@@ -242,17 +255,27 @@ int main()
 				imshow("Image1", temp);
 				temp1 = temp;
 			}
+			else
+			{
+				record.pop_back();
+				Mat temp = imread("lisa.jpg");
+				pointList2.pop_back();
+				pointList2.pop_back();
+				for (int i = 0; i < pointList2.size(); i += 2)
+					line(temp, pointList2[i], pointList2[i + 1], Scalar(0, 0, 255), 2);
+				imshow("Image2", temp);
+				temp2 = temp;
+			}
 			break;
 		case 'q':
-			for (int i = 0; i <= 10; i++)
+			for (int i = 0; i <= 10; i++) //0-1
 			{
 				float j = i / 10.0;
 				Mat img00 = img0.clone();
 				Mat img000 = img0.clone();
 				Mat img11 = img1.clone();
 				Mat img111 = img1.clone();
-				newLines(&img0, 0, j);
-				newLines(&img1, 1, j);
+				newLines(j);
 				WarpImage(&img00, &img000, 0);
 				WarpImage(&img11, &img111, 1);
 				addWeighted(img000, 1 - j, img111, j, 0.0, dst);
@@ -261,11 +284,29 @@ int main()
 				newpointList0.erase(newpointList0.begin(), newpointList0.end());
 				newpointList1.erase(newpointList1.begin(), newpointList1.end());
 			}
+			pointList0 = pointList1;
+			pointList1 = pointList2;
+			for (int i = 0; i <= 10; i++) //1-2
+			{
+				float j = i / 10.0;
+				Mat img11 = img1.clone();
+				Mat img111 = img1.clone();
+				Mat img22 = img2.clone();
+				Mat img222 = img2.clone();
+				newLines(j);
+				WarpImage(&img11, &img111, 0);
+				WarpImage(&img22, &img222, 1);
+				addWeighted(img111, 1 - j, img222, j, 0.0, dst);
+				cv::String filename = format("imgBlur%d.png", i+11);
+				cv::imwrite(filename, dst);
+				newpointList0.erase(newpointList0.begin(), newpointList0.end());
+				newpointList1.erase(newpointList1.begin(), newpointList1.end());
+			}
 
 			//create video
 			frame = cv::imread("imgBlur0.png");
 			writer = cv::VideoWriter("out.avi", VideoWriter::fourcc('M', 'J', 'P', 'G'), 3, frame.size());
-			for (int i = 0; i <= 10; i++)
+			for (int i = 0; i <= 21; i++)
 			{
 				cv::String filename = format("imgBlur%d.png", i);
 				frame = cv::imread(filename);
