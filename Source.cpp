@@ -1,3 +1,4 @@
+/**********基本&加分題1**********/
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #define CVUI_IMPLEMENTATION
@@ -10,13 +11,14 @@ vector<int> record;
 vector<Point> pointList0, pointList1, pointList2, newpointList0, newpointList1, newpointList2;
 Point previousPoint0, previousPoint1, previousPoint2;
 
+//img0畫線的mouse event callbackfunction
 void CallBackFunc0(int event, int x, int y, int flags, void* userdata)
 {
-	if (event == CV_EVENT_LBUTTONDOWN)
+	if (event == CV_EVENT_LBUTTONDOWN) //線段起點
 	{
 		previousPoint0 = Point(x, y);
 	}
-	else if (event == CV_EVENT_LBUTTONUP)
+	else if (event == CV_EVENT_LBUTTONUP) //線段終點
 	{
 		Point pt(x, y);
 		line((*(Mat*)userdata), previousPoint0, pt, Scalar(0, 0, 255), 2);
@@ -24,10 +26,11 @@ void CallBackFunc0(int event, int x, int y, int flags, void* userdata)
 		pointList0.push_back(pt);
 		previousPoint0 = pt;
 		imshow("Image0", (*(Mat*)userdata));
-		record.push_back(0);
+		record.push_back(0); //紀錄畫線順序以便復原
 	}
 }
 
+//img1畫線的mouse event callbackfunction
 void CallBackFunc1(int event, int x, int y, int flags, void* userdata)
 {
 	if (event == CV_EVENT_LBUTTONDOWN)
@@ -46,6 +49,7 @@ void CallBackFunc1(int event, int x, int y, int flags, void* userdata)
 	}
 }
 
+//img2畫線的mouse event callbackfunction
 void CallBackFunc2(int event, int x, int y, int flags, void* userdata)
 {
 	if (event == CV_EVENT_LBUTTONDOWN)
@@ -64,6 +68,7 @@ void CallBackFunc2(int event, int x, int y, int flags, void* userdata)
 	}
 }
 
+//計算2張圖片在不同的t之下，所產生的新線段
 void newLines(float t)
 {
 	Point newPointP, newPointQ;
@@ -83,6 +88,7 @@ void newLines(float t)
 	}
 }
 
+//利用biliear way去取得source image的color
 cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
 {
 	assert(!img.empty());
@@ -109,6 +115,7 @@ cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
 	return cv::Vec3b(b, g, r);
 }
 
+//求出X到PQ線段的距離
 double test(Point X, Point P, Point Q, double u, double v)
 {
 	if (u < 0)
@@ -181,6 +188,7 @@ void WarpImage(void* image, void* resultimage, int flag)
 			}
 			
 			ps = psum / wsum;
+			//若出現out of boundary的座標需進行處理
 			if (ps.x < 0)
 				ps.x = 0;
 			if (ps.y < 0)
@@ -190,6 +198,7 @@ void WarpImage(void* image, void* resultimage, int flag)
 			if (ps.y >= (*(Mat*)resultimage).rows)
 				ps.y = (*(Mat*)resultimage).rows - 1;
 			
+			//將source image的color rgb值填入destination image中
 			cv::Vec3b pixel = getColorSubpix((*(Mat*)image), ps);
 			(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[0] = pixel[0];
 			(*(Mat*)resultimage).at<cv::Vec3b>(j, i)[1] = pixel[1];
@@ -201,13 +210,13 @@ void WarpImage(void* image, void* resultimage, int flag)
 
 int main()
 {
+	//讀取三張圖
 	Mat temp0 = imread("women.jpg");
 	namedWindow("Image0", WINDOW_AUTOSIZE);
 	setMouseCallback("Image0", CallBackFunc0, &temp0);
 	imshow("Image0", temp0);
 	Mat img0 = temp0.clone();
 	
-
 	Mat temp1 = imread("cheetah.jpg");
 	namedWindow("Image1", WINDOW_AUTOSIZE);
 	setMouseCallback("Image1", CallBackFunc1, &temp1);
@@ -227,12 +236,12 @@ int main()
 	Mat dst,frame;
 	VideoWriter writer;
 	int count = 0;
-	int key; //按下q會開始進行warping
+	int key; 
 	key = cvWaitKey(0);
 	while (true)
 	{
 		switch (key) {
-		case 'a':
+		case 'a': //按下a可以復原上個線段
 			if (record[record.size() - 1] == 0)
 			{
 				record.pop_back();
@@ -267,8 +276,8 @@ int main()
 				temp2 = temp;
 			}
 			break;
-		case 'q':
-			for (int i = 0; i <= 10; i++) //0-1
+		case 'q': //按下q會開始進行warping
+			for (int i = 0; i <= 10; i++) //img0-img1的morphing,產生11張圖片
 			{
 				float j = i / 10.0;
 				Mat img00 = img0.clone();
@@ -286,7 +295,7 @@ int main()
 			}
 			pointList0 = pointList1;
 			pointList1 = pointList2;
-			for (int i = 0; i <= 10; i++) //1-2
+			for (int i = 0; i <= 10; i++) //img1-img2的morphing,產生11張圖片
 			{
 				float j = i / 10.0;
 				Mat img11 = img1.clone();
@@ -303,7 +312,7 @@ int main()
 				newpointList1.erase(newpointList1.begin(), newpointList1.end());
 			}
 
-			//create video
+			//create video "out.avi"
 			frame = cv::imread("imgBlur0.png");
 			writer = cv::VideoWriter("out.avi", VideoWriter::fourcc('M', 'J', 'P', 'G'), 3, frame.size());
 			for (int i = 0; i <= 21; i++)
